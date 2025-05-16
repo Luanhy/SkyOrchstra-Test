@@ -5,6 +5,7 @@ import time
 import os
 
 
+
 # ======= Formationsfunktionen =======
 
 def linienformation(n, spacing, height):
@@ -23,8 +24,8 @@ def herzformation(n, scale, height):
     coords = []
     for t in ts:
         x = 16 * np.sin(t)**3
-        y = 13 * np.cos(t) - 5 * np.cos(2*t) - 2 * np.cos(3*t) - np.cos(4*t)
-        coords.append((x * scale, y * scale, height))
+        z = 13 * np.cos(t) - 5 * np.cos(2*t) - 2 * np.cos(3*t) - np.cos(4*t)
+        coords.append((x * scale, z * scale, height))
     return coords
 
 
@@ -33,29 +34,29 @@ def quadratformation(num_drones, size, center):
     half = size / 2
     drones_per_side = num_drones // 4
 
-    # Unterkante
+    # Unten
     for i in range(drones_per_side):
         x = center[0] - half + i * (size / (drones_per_side - 1))
-        y = center[1] - half
-        positions.append([x, y, center[2]])
+        z = center[2] - half
+        positions.append([x, center[1], z])
 
-    # Rechte Kante
+    # Rechts
     for i in range(drones_per_side):
         x = center[0] + half
-        y = center[1] - half + i * (size / (drones_per_side - 1))
-        positions.append([x, y, center[2]])
+        z = center[2] - half + i * (size / (drones_per_side - 1))
+        positions.append([x, center[1], z])
 
-    # Oberkante
+    # Oben
     for i in range(drones_per_side):
         x = center[0] + half - i * (size / (drones_per_side - 1))
-        y = center[1] + half
-        positions.append([x, y, center[2]])
+        z = center[2] + half
+        positions.append([x, center[1], z])
 
-    # Linke Kante
+    # Links
     for i in range(drones_per_side):
         x = center[0] - half
-        y = center[1] + half - i * (size / (drones_per_side - 1))
-        positions.append([x, y, center[2]])
+        z = center[2] + half - i * (size / (drones_per_side - 1))
+        positions.append([x, center[1], z])
 
     return positions
 
@@ -65,8 +66,8 @@ def kreisformation(n, radius, height, center=(0, 0)):
     angles = np.linspace(0, 2 * np.pi, n, endpoint=False)
     for angle in angles:
         x = center[0] + radius * np.cos(angle)
-        y = center[1] + radius * np.sin(angle)
-        z = height
+        z = center[1] + radius * np.sin(angle)
+        y = height
         positions.append((x, y, z))
     return positions
 
@@ -91,6 +92,24 @@ def all_reached(drones, targets, threshold=0.05):
     return True
 
 
+def add_light_marker(position, color=(1, 1, 0, 1), radius=0.1):
+    visual_shape_id = p.createVisualShape(
+        shapeType=p.GEOM_SPHERE,
+        radius=radius,
+        rgbaColor=color
+    )
+    body_id = p.createMultiBody(
+        baseMass=0,
+        baseCollisionShapeIndex=-1,
+        baseVisualShapeIndex=visual_shape_id,
+        basePosition=position
+    )
+    return body_id
+
+
+
+
+
 # ======= Hauptfunktion =======
 
 def run_simulation():
@@ -105,8 +124,8 @@ def run_simulation():
     # Startposition & Ziel-Formationen
     start_positions = linienformation(num_drones, spacing=1.5, height=0.5)
     target_herz = herzformation(num_drones, scale=0.15, height=2.5)
-    target_quadrat = quadratformation(num_drones, size=3, center=[1, 1, 1])
-    target_kreis = kreisformation(num_drones, radius=4, height=4)
+    target_quadrat = quadratformation(num_drones, size=3, center=[5, 5, 5])
+    target_kreis = kreisformation(num_drones, radius=3, height=7)
 
     phase = "herz"  # Startphase
 
@@ -117,6 +136,17 @@ def run_simulation():
         ori = p.getQuaternionFromEuler([0, 0, 0])
         drone_id = p.loadURDF(drone_path, basePosition=pos, baseOrientation=ori, useFixedBase=False)
         drones.append(drone_id)
+
+    # Bewegung des Lichts
+    lights_ids = []
+    offset = (0, 0, 0.3)
+
+    for drone in drones:
+        pos, _ = p.getBasePositionAndOrientation(drone)
+        light_pos = tuple(np.array(pos) + np.array(offset))
+        light_id = add_light_marker(light_pos)
+        lights_ids.append(light_id)
+
 
     # Simulationsschleife
     while True:
@@ -141,6 +171,12 @@ def run_simulation():
 
         elif phase == "quadrat" and all_reached(drones, target_quadrat):
             phase = "kreis"
+
+        #Bewegung pro Licht
+        for i, drone in enumerate(drones):
+            pos, _ = p.getBasePositionAndOrientation(drone)
+            light_pos = tuple(np.array(pos) + np.array(offset))
+            p.resetBasePositionAndOrientation(lights_ids[i], light_pos, [0, 0, 0, 1])
 
         p.stepSimulation()
         time.sleep(1.0 / 240)
