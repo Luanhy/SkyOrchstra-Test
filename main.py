@@ -23,9 +23,13 @@ def herzformation(n, scale, height):
     ts = np.linspace(0, 2 * np.pi, n, endpoint=False)
     coords = []
     for t in ts:
-        x = 16 * np.sin(t)**3
-        z = 13 * np.cos(t) - 5 * np.cos(2*t) - 2 * np.cos(3*t) - np.cos(4*t)
-        coords.append((x * scale, z * scale, height))
+        x = 16 * np.sin(t) ** 3
+        z = (13 * np.cos(t)
+             - 5 * np.cos(2 * t)
+             - 2 * np.cos(3 * t)
+             - np.cos(4 * t))
+        # X = Breite, Y = Tiefe (z.B. 0), Z = Höhe (durch Herzform + gewünschte Höhe)
+        coords.append((x * scale, 0, z * scale + height))
     return coords
 
 
@@ -61,14 +65,13 @@ def quadratformation(num_drones, size, center):
     return positions
 
 
-def kreisformation(n, radius, height, center=(0, 0)):
+def kreisformation(n, radius, height, y_position=0, center=(0, 0)):
     positions = []
     angles = np.linspace(0, 2 * np.pi, n, endpoint=False)
     for angle in angles:
-        x = center[0] + radius * np.cos(angle)
-        z = center[1] + radius * np.sin(angle)
-        y = height
-        positions.append((x, y, z))
+        x = center[0] + radius * np.cos(angle)     # X = Breite
+        z = center[1] + radius * np.sin(angle)     # Z = relative Höhe im Kreis
+        positions.append((x, y_position, z + height))  # Z + Höhe = absolute Höhe
     return positions
 
 
@@ -123,9 +126,9 @@ def run_simulation():
 
     # Startposition & Ziel-Formationen
     start_positions = linienformation(num_drones, spacing=1.5, height=0.5)
-    target_herz = herzformation(num_drones, scale=0.15, height=2.5)
-    target_quadrat = quadratformation(num_drones, size=3, center=[5, 5, 5])
-    target_kreis = kreisformation(num_drones, radius=3, height=7)
+    target_herz = herzformation(num_drones, scale=0.15, height=3)
+    target_quadrat = quadratformation(num_drones, size=3, center=[0, 0, 5])
+    target_kreis = kreisformation(num_drones, radius=3, height=5)
 
     phase = "herz"  # Startphase
 
