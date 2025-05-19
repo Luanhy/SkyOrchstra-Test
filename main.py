@@ -3,6 +3,7 @@ import pybullet_data
 import numpy as np
 import time
 import os
+import pandas as pd
 
 
 
@@ -110,8 +111,23 @@ def add_light_marker(position, color=(1, 1, 0, 1), radius=0.1):
     return body_id
 
 
+def get_snapshot(drones, current_time):
+    data = []
+    for i, drone_id in enumerate(drones):
+        pos, _ = p.getBasePositionAndOrientation(drone_id)
+        data.append({
+            "time": round(current_time, 2),
+            "id": i + 1,
+            "x": round(pos[0], 2),
+            "y": round(pos[1], 2),
+            "z": round(pos[2], 2),
+        })
+    return data
 
 
+def export_simulation_to_csv(simulation_log, filename):
+    df = pd.DataFrame(simulation_log)
+    df.to_csv(filename, index=False)
 
 # ======= Hauptfunktion =======
 
@@ -150,6 +166,8 @@ def run_simulation():
         light_id = add_light_marker(light_pos)
         lights_ids.append(light_id)
 
+    simulation_log = []
+    start_time = time.time()
 
     # Simulationsschleife
     while True:
@@ -181,11 +199,20 @@ def run_simulation():
             light_pos = tuple(np.array(pos) + np.array(offset))
             p.resetBasePositionAndOrientation(lights_ids[i], light_pos, [0, 0, 0, 1])
 
+        #Speicherung csv pro frame
+        current_time = time.time() - start_time
+        snapshot = get_snapshot(drones, current_time)
+        simulation_log.extend(snapshot)
+
+        if phase == "kreis" and all_reached(drones, target_kreis):
+            break
+
+
         p.stepSimulation()
         time.sleep(1.0 / 240)
 
+    export_simulation_to_csv(simulation_log, "simulation_log.csv")
 
-# ======= Startpunkt =======
 
 if __name__ == "__main__":
     run_simulation()
